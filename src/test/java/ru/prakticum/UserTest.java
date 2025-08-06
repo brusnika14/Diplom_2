@@ -1,18 +1,28 @@
 package ru.prakticum;
 
+
+
 import io.qameta.allure.Description;
 import io.qameta.allure.junit4.DisplayName;
 import io.restassured.RestAssured;
 import io.restassured.config.LogConfig;
+import io.restassured.response.ValidatableResponse;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import ru.yandex.prakticum.dto.CreateUserRequest;
+import ru.yandex.prakticum.dto.UserLoginRequest;
 import ru.yandex.prakticum.steps.UserSteps;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.hamcrest.Matchers.is;
 
 public class UserTest {
+
+    private List<String> accessTokensToCleanup = new ArrayList<>();
 
     @Before
     public void setup() {
@@ -20,9 +30,18 @@ public class UserTest {
                 .logConfig(LogConfig.logConfig().enableLoggingOfRequestAndResponseIfValidationFails());
     }
 
+    @After
+    public void cleanup() {
+        for (String accessToken : accessTokensToCleanup) {
+            UserSteps.deleteUser(accessToken)
+                    .statusCode(202);
+        }
+        accessTokensToCleanup.clear();
+    }
+
     @Test
     @DisplayName("Создание нового пользователя")
-    @Description("Проверяем, что курьера можно создать с валидными данными")
+    @Description("Проверяем, что пользователя можно создать с валидными данными")
     public void shouldRegisterSuccessfully() {
         CreateUserRequest userRequest = new CreateUserRequest(
                 RandomStringUtils.randomAlphabetic(10) + "@example.com",
@@ -30,9 +49,17 @@ public class UserTest {
                 RandomStringUtils.randomAlphabetic(10)
         );
 
-        UserSteps.createUser(userRequest)
+        ValidatableResponse response = UserSteps.createUser(userRequest)
                 .statusCode(200)
                 .body("success", is(true));
+
+        String accessToken = UserSteps.extractAccessToken(
+                UserSteps.loginUser(new UserLoginRequest(
+                        userRequest.getEmail(),
+                        userRequest.getPassword()
+                ))
+        );
+        accessTokensToCleanup.add(accessToken);
     }
 
     @Test
@@ -48,6 +75,15 @@ public class UserTest {
         // Первая регистрация
         UserSteps.createUser(userRequest)
                 .statusCode(200);
+
+        // Добавляем пользователя для очистки
+        String accessToken = UserSteps.extractAccessToken(
+                UserSteps.loginUser(new UserLoginRequest(
+                        userRequest.getEmail(),
+                        userRequest.getPassword()
+                ))
+        );
+        accessTokensToCleanup.add(accessToken);
 
         // Попытка повторной регистрации
         UserSteps.createUser(userRequest)

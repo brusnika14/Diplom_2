@@ -20,7 +20,6 @@ import java.util.List;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertTrue;
 
-
 public class OrderCreationTest {
 
     private String accessToken;
@@ -31,7 +30,6 @@ public class OrderCreationTest {
         RestAssured.config = RestAssured.config()
                 .logConfig(LogConfig.logConfig().enableLoggingOfRequestAndResponseIfValidationFails());
 
-        // Локальные переменные вместо полей класса
         String email = RandomStringUtils.randomAlphabetic(10) + "@example.com";
         String password = RandomStringUtils.randomAlphabetic(10);
         String username = RandomStringUtils.randomAlphabetic(10);
@@ -62,7 +60,7 @@ public class OrderCreationTest {
     @DisplayName("Создание заказа с авторизацией")
     @Description("Проверка успешного создания заказа авторизованным пользователем")
     public void shouldCreateOrderWithAuthSuccessfully() {
-        CreateOrderRequest orderRequest = new CreateOrderRequest(ingredients.subList(0, 2)); // Берем первые 2 ингредиента
+        CreateOrderRequest orderRequest = new CreateOrderRequest(ingredients.subList(0, 2));
 
         OrderSteps.createOrderWithAuth(orderRequest, accessToken)
                 .statusCode(200)
@@ -74,25 +72,15 @@ public class OrderCreationTest {
 
     @Test
     @DisplayName("Создание заказа без авторизации")
-    @Description("ВНИМАНИЕ: Сервер временно принимает заказы без авторизации")
+    @Description("Проверка невозможности создания заказа без авторизации")
     public void shouldNotCreateOrderWithoutAuth() {
         CreateOrderRequest orderRequest = new CreateOrderRequest(ingredients.subList(0, 2));
 
-        ValidatableResponse response = OrderSteps.createOrderWithoutAuth(orderRequest);
-
-        // Временная проверка - закомментируйте после исправления сервера
-        if (response.extract().statusCode() == 200) {
-            System.err.println("ВНИМАНИЕ: Сервер принимает заказы без авторизации! Это нарушение требований");
-            return;
-        }
-
-        // Основная проверка (оставить после исправления сервера)
-        response
+        OrderSteps.createOrderWithoutAuth(orderRequest)
                 .statusCode(401)
                 .body("success", is(false))
                 .body("message", is("You should be authorised"));
     }
-
 
     @Test
     @DisplayName("Создание заказа без ингредиентов")
@@ -115,6 +103,7 @@ public class OrderCreationTest {
         OrderSteps.createOrderWithAuth(invalidOrderRequest, accessToken)
                 .statusCode(500);
     }
+
     @Test
     @DisplayName("Создание заказа с валидными ингредиентами")
     @Description("Проверка успешного создания заказа с корректными ингредиентами")
