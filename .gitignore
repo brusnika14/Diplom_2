@@ -91,5 +91,4 @@ nb-configuration.xml
 *.log
 # Allure
 .allure/
-target/allure-results/
-
+target/*!allure-results/
