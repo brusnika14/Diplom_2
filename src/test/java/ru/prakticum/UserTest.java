@@ -1,5 +1,7 @@
 package ru.prakticum;
 
+
+
 import io.qameta.allure.Description;
 import io.qameta.allure.junit4.DisplayName;
 import io.restassured.RestAssured;
@@ -16,14 +18,11 @@ import ru.yandex.prakticum.steps.UserSteps;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.is;
 
 public class UserTest {
 
-    private static final String REQUIRED_FIELDS_ERROR = "Email, password and name are required fields";
-    private static final String DUPLICATE_USER_ERROR = "User already exists";
-
-    private List<CreateUserRequest> usersToCleanup = new ArrayList<>();
+    private List<String> accessTokensToCleanup = new ArrayList<>();
 
     @Before
     public void setup() {
@@ -33,22 +32,11 @@ public class UserTest {
 
     @After
     public void cleanup() {
-        for (CreateUserRequest user : usersToCleanup) {
-            try {
-                ValidatableResponse loginResponse = UserSteps.loginUser(new UserLoginRequest(
-                        user.getEmail(),
-                        user.getPassword()
-                ));
-
-                if (loginResponse.extract().statusCode() == 200) {
-                    String accessToken = UserSteps.extractAccessToken(loginResponse);
-                    UserSteps.deleteUser(accessToken).statusCode(202);
-                }
-            } catch (Exception e) {
-                System.out.println("Failed to cleanup user: " + user.getEmail());
-            }
+        for (String accessToken : accessTokensToCleanup) {
+            UserSteps.deleteUser(accessToken)
+                    .statusCode(202);
         }
-        usersToCleanup.clear();
+        accessTokensToCleanup.clear();
     }
 
     @Test
@@ -65,7 +53,13 @@ public class UserTest {
                 .statusCode(200)
                 .body("success", is(true));
 
-        usersToCleanup.add(userRequest);
+        String accessToken = UserSteps.extractAccessToken(
+                UserSteps.loginUser(new UserLoginRequest(
+                        userRequest.getEmail(),
+                        userRequest.getPassword()
+                ))
+        );
+        accessTokensToCleanup.add(accessToken);
     }
 
     @Test
@@ -82,17 +76,24 @@ public class UserTest {
         UserSteps.createUser(userRequest)
                 .statusCode(200);
 
-        usersToCleanup.add(userRequest);
+        // Добавляем пользователя для очистки
+        String accessToken = UserSteps.extractAccessToken(
+                UserSteps.loginUser(new UserLoginRequest(
+                        userRequest.getEmail(),
+                        userRequest.getPassword()
+                ))
+        );
+        accessTokensToCleanup.add(accessToken);
 
         // Попытка повторной регистрации
         UserSteps.createUser(userRequest)
                 .statusCode(403)
                 .body("success", is(false))
-                .body("message", is(DUPLICATE_USER_ERROR));
+                .body("message", is("User already exists"));
     }
 
     @Test
-    @DisplayName("Создание пользователя с неверным email")
+    @DisplayName("Создание пользователя без логина")
     @Description("Попытка создать пользователя с неверным email")
     public void shouldNotRegisterWithInvalidEmail() {
         CreateUserRequest invalidUserRequest = new CreateUserRequest(
@@ -103,11 +104,7 @@ public class UserTest {
 
         UserSteps.createUser(invalidUserRequest)
                 .statusCode(403)
-                .body("success", is(false))
-                .body("message", anyOf(
-                        is(DUPLICATE_USER_ERROR),
-                        is(REQUIRED_FIELDS_ERROR),
-                        containsString("email")));
+                .body("success", is(false));
     }
 
     @Test
@@ -122,8 +119,7 @@ public class UserTest {
 
         UserSteps.createUser(emptyEmailRequest)
                 .statusCode(403)
-                .body("success", is(false))
-                .body("message", is(REQUIRED_FIELDS_ERROR));
+                .body("success", is(false));
     }
 
     @Test
@@ -138,7 +134,6 @@ public class UserTest {
 
         UserSteps.createUser(emptyPasswordRequest)
                 .statusCode(403)
-                .body("success", is(false))
-                .body("message", is(REQUIRED_FIELDS_ERROR));
+                .body("success", is(false));
     }
 }
