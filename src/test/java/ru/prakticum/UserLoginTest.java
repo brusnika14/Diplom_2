@@ -32,6 +32,10 @@ public class UserLoginTest {
         String username = RandomStringUtils.randomAlphabetic(10);
 
         userRequest = new CreateUserRequest(email, password, username);
+
+        // Создание пользователя перед каждым тестом
+        UserSteps.createUser(userRequest)
+                .statusCode(200);
     }
 
     @After
@@ -46,11 +50,6 @@ public class UserLoginTest {
     @DisplayName("Логин под существующим пользователем")
     @Description("Проверка возможности логина под существующим пользователем")
     public void shouldLoginSuccessfullyWithValidCredentials() {
-        // Регистрация пользователя
-        UserSteps.createUser(userRequest)
-                .statusCode(200);
-
-        // Логин пользователя
         UserLoginRequest loginRequest = new UserLoginRequest(email, password);
         accessToken = UserSteps.loginUser(loginRequest)
                 .statusCode(200)
@@ -61,7 +60,7 @@ public class UserLoginTest {
 
     @Test
     @DisplayName("Логин с неверным email")
-    @Description("Проверка не возможности логина с неверным email")
+    @Description("Проверка невозможности логина с неверным email")
     public void shouldNotLoginWithInvalidCredentials() {
         UserLoginRequest invalidLoginRequest = new UserLoginRequest(
                 RandomStringUtils.randomAlphabetic(10) + "@example.com",
@@ -76,18 +75,8 @@ public class UserLoginTest {
 
     @Test
     @DisplayName("Логин с неверным password")
-    @Description("Проверка не возможности логина с неверным password")
+    @Description("Проверка невозможности логина с неверным password")
     public void shouldNotLoginWithWrongPassword() {
-        // Регистрация пользователя
-        UserSteps.createUser(userRequest)
-                .statusCode(200);
-
-        // Логин с правильными данными для получения токена
-        UserLoginRequest correctLoginRequest = new UserLoginRequest(email, password);
-        accessToken = UserSteps.loginUser(correctLoginRequest)
-                .extract().path("accessToken");
-
-        // Логин с неверным паролем
         UserLoginRequest wrongPasswordRequest = new UserLoginRequest(email, "wrong_password");
         UserSteps.loginUser(wrongPasswordRequest)
                 .statusCode(401)
